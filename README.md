@@ -60,6 +60,19 @@ Para garantir um sistema rápido, escalável e com código limpo, utilizamos as 
 
 ---
 
+---
+
+## 🌟 Diferenciais Implementados (Bônus)
+Para entregar um projeto de excelência, fomos além dos requisitos básicos. Aqui estão as escolhas técnicas e funcionais que tornam este projeto especial:
+
+1. **Internacionalização (i18n):** O Frontend possui suporte a múltiplos idiomas nativo, com um `LanguageContext` configurado para trocar entre Português e Inglês em tempo real.
+2. **Performance Extrema com Fastify:** No lugar do tradicional Express, utilizamos o Fastify no backend, que é capaz de lidar com requisições HTTP de forma significativamente mais rápida.
+3. **Validação de Dados com Zod:** Segurança em primeiro lugar. Em vez de validações manuais, usamos o `Zod` aliado ao `react-hook-form` para garantir que nenhum dado inválido seja enviado ao banco de dados.
+4. **Engenharia de Prompt Robusta:** A IA não apenas "gera texto". O prompt enviado ao Gemini foi desenhado para forçar um output exclusivamente em formato JSON, mapeando chaves exatas (como *resumo_gerado* e *sugestoes_conteudo*). Isso previne a quebra do código no lado do cliente.
+5. **Debounce na Busca:** Na tela de listagem, ao buscar pelo título, implementamos um *debounce* para não inundar o backend com requisições a cada tecla pressionada.
+
+---
+
 ## 🚀 Como rodar o projeto na sua máquina?
 
 Se você quer testar a aplicação localmente, o processo é bem simples. Siga o passo a passo:
