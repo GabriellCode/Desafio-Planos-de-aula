@@ -3,6 +3,7 @@ import LessonPlanList from './pages/LessonPlanList';
 import StudentList from './pages/StudentList';
 import StudentDashboard from './pages/StudentDashboard';
 import LessonPlanForm from './pages/LessonPlanForm';
+import LessonPlanView from './pages/LessonPlanView';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 
 function Navbar() {
@@ -53,12 +54,14 @@ function App() {
             {/* Global Plans */}
             <Route path="/" element={<LessonPlanList />} />
             <Route path="/plan/create" element={<LessonPlanForm />} />
+            <Route path="/plan/:id" element={<LessonPlanView />} />
             <Route path="/plan/:id/edit" element={<LessonPlanForm />} />
 
             {/* Student Management */}
             <Route path="/students" element={<StudentList />} />
             <Route path="/student/:id" element={<StudentDashboard />} />
             <Route path="/student/:studentId/plan/create" element={<LessonPlanForm />} />
+            <Route path="/student/:studentId/plan/:id" element={<LessonPlanView />} />
             <Route path="/student/:studentId/plan/:id/edit" element={<LessonPlanForm />} />
           </Routes>
         </main>

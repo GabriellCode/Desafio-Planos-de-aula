@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { BookOpen, Plus, Search, Trash2, Edit, Calendar, User, ChevronLeft, ChevronRight, SlidersHorizontal, X } from 'lucide-react';
+import { BookOpen, Plus, Search, Trash2, Edit, Calendar, User, ChevronLeft, ChevronRight, SlidersHorizontal, X, Eye } from 'lucide-react';
 import { getLessonPlans, deleteLessonPlan } from '../api';
 import { useLanguage } from '../context/LanguageContext';
 import { format } from 'date-fns';
@@ -244,13 +244,21 @@ export default function LessonPlanList() {
                 >
                   <div>
                     <div className="flex justify-between items-start mb-4">
-                      <h3 className="font-bold text-xl text-gray-900 group-hover:text-green-600 transition-colors line-clamp-2">
-                        {plan.title}
-                      </h3>
+                      <Link to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}` : `/plan/${plan.id}`} className="group-hover:text-green-600 transition-colors">
+                        <h3 className="font-bold text-xl text-gray-900 line-clamp-2">
+                          {plan.title}
+                        </h3>
+                      </Link>
                       <div className="flex gap-1 ml-2">
                         <Link 
-                          to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}/edit` : `/plan/${plan.id}/edit`} 
+                          to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}` : `/plan/${plan.id}`} 
                           className="text-gray-400 hover:text-green-600 transition-colors bg-gray-50 hover:bg-green-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <Link 
+                          to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}/edit` : `/plan/${plan.id}/edit`} 
+                          className="text-gray-400 hover:text-blue-600 transition-colors bg-gray-50 hover:bg-blue-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
                         >
                           <Edit className="w-4 h-4" />
                         </Link>

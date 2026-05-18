@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Plus, Edit, Trash2, Calendar } from 'lucide-react';
+import { ArrowLeft, BookOpen, Plus, Edit, Trash2, Calendar, Eye } from 'lucide-react';
 import { getStudent, getLessonPlans, deleteLessonPlan } from '../api';
 import { useLanguage } from '../context/LanguageContext';
 import { format } from 'date-fns';
@@ -117,10 +117,13 @@ export default function StudentDashboard() {
                   {plans.map(plan => (
                     <div key={plan.id} className="group bg-white border border-gray-100 shadow-sm rounded-2xl p-6 hover:border-green-500/30 hover:shadow-lg hover:shadow-gray-200/50 transition-all flex flex-col">
                       <div className="flex justify-between items-start mb-4">
-                        <h3 className="font-bold text-xl text-gray-900 group-hover:text-green-600">{plan.title}</h3>
+                        <Link to={`/student/${id}/plan/${plan.id}`} className="group-hover:text-green-600 transition-colors">
+                          <h3 className="font-bold text-xl text-gray-900 line-clamp-2">{plan.title}</h3>
+                        </Link>
                         <div className="flex gap-2">
-                          <Link to={`/student/${id}/plan/${plan.id}/edit`} className="text-gray-400 hover:text-green-600 transition-colors bg-gray-50 hover:bg-green-50 p-1.5 rounded-lg"><Edit className="w-4 h-4" /></Link>
-                          <button onClick={(e) => handleDeletePlanClick(e, plan.id)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors bg-gray-50 p-1.5 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                          <Link to={`/student/${id}/plan/${plan.id}`} className="text-gray-400 hover:text-green-600 transition-colors bg-gray-50 hover:bg-green-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Eye className="w-4 h-4" /></Link>
+                          <Link to={`/student/${id}/plan/${plan.id}/edit`} className="text-gray-400 hover:text-blue-600 transition-colors bg-gray-50 hover:bg-blue-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Edit className="w-4 h-4" /></Link>
+                          <button onClick={(e) => handleDeletePlanClick(e, plan.id)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors bg-gray-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
                       <div className="flex items-center text-sm text-gray-500 mb-4">
