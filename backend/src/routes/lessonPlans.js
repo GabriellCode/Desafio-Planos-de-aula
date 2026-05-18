@@ -46,10 +46,10 @@ export async function lessonPlanRoutes(server) {
       }
 
       const orderByClause = {};
-      if (['title', 'createdAt', 'expectedDate'].includes(sortBy)) {
+      if (['title', 'createdAt', 'expectedDate', 'order'].includes(sortBy)) {
         orderByClause[sortBy] = sortOrder === 'asc' ? 'asc' : 'desc';
       } else {
-        orderByClause.createdAt = 'desc';
+        orderByClause.order = 'asc';
       }
 
       const [totalItems, plans] = await prisma.$transaction([
@@ -104,8 +104,14 @@ export async function lessonPlanRoutes(server) {
         data.studentId = null;
       }
 
+      const maxOrderPlan = await prisma.lessonPlan.findFirst({
+        where: { studentId: data.studentId },
+        orderBy: { order: 'desc' },
+      });
+      const order = maxOrderPlan ? maxOrderPlan.order + 1 : 0;
+
       const plan = await prisma.lessonPlan.create({ 
-        data
+        data: { ...data, order }
       });
       return reply.status(201).send(plan);
     } catch (error) {
@@ -148,6 +154,33 @@ export async function lessonPlanRoutes(server) {
       return reply.status(204).send();
     } catch (error) {
       server.log.error(error);
+      return reply.status(500).send({ error: 'Internal Server Error' });
+    }
+  });
+
+  const reorderSchema = z.array(z.object({
+    id: z.string(),
+    order: z.number().int(),
+  }));
+
+  server.put('/reorder', async (request, reply) => {
+    try {
+      const items = reorderSchema.parse(request.body);
+      
+      const transactions = items.map(item => 
+        prisma.lessonPlan.update({
+          where: { id: item.id },
+          data: { order: item.order },
+        })
+      );
+
+      await prisma.$transaction(transactions);
+      return reply.send({ success: true });
+    } catch (error) {
+      server.log.error(error);
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: 'Erro de Validação', details: error.errors });
+      }
       return reply.status(500).send({ error: 'Internal Server Error' });
     }
   });

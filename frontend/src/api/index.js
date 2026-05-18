@@ -67,6 +67,11 @@ export const deleteLessonPlan = async (id) => {
   return data;
 };
 
+export const reorderLessonPlans = async (payload) => {
+  const { data } = await api.put('/lesson-plans/reorder', payload);
+  return data;
+};
+
 // Reports
 export const getReports = async (studentId) => {
   const { data } = await api.get(`/reports?studentId=${studentId}`);

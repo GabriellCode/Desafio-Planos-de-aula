@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Plus, Edit, Trash2, Calendar, Eye } from 'lucide-react';
-import { getStudent, getLessonPlans, deleteLessonPlan } from '../api';
+import { getStudent, getLessonPlans, deleteLessonPlan, reorderLessonPlans } from '../api';
 import { useLanguage } from '../context/LanguageContext';
 import { format } from 'date-fns';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export default function StudentDashboard() {
   const { id } = useParams();
@@ -72,6 +75,30 @@ export default function StudentDashboard() {
     return <div className="min-h-screen flex items-center justify-center text-gray-900 bg-slate-50"><div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    })
+  );
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setPlans((items) => {
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
+        const newArray = arrayMove(items, oldIndex, newIndex);
+        
+        const updatedArray = newArray.map((item, idx) => ({ ...item, order: items[idx].order ?? idx }));
+        
+        const payload = updatedArray.map((item, idx) => ({ id: item.id, order: items[idx].order ?? idx }));
+        reorderLessonPlans(payload).catch(console.error);
+
+        return updatedArray;
+      });
+    }
+  };
+
   return (
     <div className="w-full flex flex-col items-center pb-20 relative z-10 animate-fade-in mt-10">
 
@@ -113,27 +140,20 @@ export default function StudentDashboard() {
                   <p className="text-gray-500 font-medium">{t.noPlans}</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {plans.map(plan => (
-                    <div key={plan.id} className="group bg-white border border-gray-100 shadow-sm rounded-2xl p-6 hover:border-green-500/30 hover:shadow-lg hover:shadow-gray-200/50 transition-all flex flex-col">
-                      <div className="flex justify-between items-start mb-4">
-                        <Link to={`/student/${id}/plan/${plan.id}`} className="group-hover:text-green-600 transition-colors">
-                          <h3 className="font-bold text-xl text-gray-900 line-clamp-2">{plan.title}</h3>
-                        </Link>
-                        <div className="flex gap-2">
-                          <Link to={`/student/${id}/plan/${plan.id}`} className="text-gray-400 hover:text-green-600 transition-colors bg-gray-50 hover:bg-green-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Eye className="w-4 h-4" /></Link>
-                          <Link to={`/student/${id}/plan/${plan.id}/edit`} className="text-gray-400 hover:text-blue-600 transition-colors bg-gray-50 hover:bg-blue-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Edit className="w-4 h-4" /></Link>
-                          <button onClick={(e) => handleDeletePlanClick(e, plan.id)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors bg-gray-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500 mb-4">
-                        <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                        <span>{format(new Date(plan.expectedDate), 'dd/MM/yyyy')}</span>
-                      </div>
-                      <p className="text-gray-600 text-sm line-clamp-2">{plan.objective}</p>
-                    </div>
-                  ))}
-                </div>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <SortableContext items={plans.map(p => p.id)} strategy={rectSortingStrategy}>
+                      {plans.map((plan, index) => (
+                        <SortablePlanCard 
+                          key={plan.id}
+                          plan={plan}
+                          id={id}
+                          handleDeletePlanClick={handleDeletePlanClick}
+                        />
+                      ))}
+                    </SortableContext>
+                  </div>
+                </DndContext>
               )}
             </div>
         </div>
@@ -164,6 +184,49 @@ export default function StudentDashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SortablePlanCard({ plan, id, handleDeletePlanClick }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: plan.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    position: 'relative'
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes} 
+      {...listeners}
+      className={`group bg-white border flex flex-col ${
+        isDragging 
+          ? 'border-green-500 shadow-2xl opacity-80 cursor-grabbing' 
+          : 'border-gray-100 shadow-sm hover:border-green-500/30 hover:shadow-lg hover:shadow-gray-200/50 cursor-grab transition-all duration-300'
+      } rounded-2xl p-6`}
+    >
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex gap-2 items-start" onPointerDown={(e) => e.stopPropagation()}>
+          <Link to={`/student/${id}/plan/${plan.id}`} className="group-hover:text-green-600 transition-colors">
+            <h3 className="font-bold text-xl text-gray-900 line-clamp-2">{plan.title}</h3>
+          </Link>
+        </div>
+        <div className="flex gap-2" onPointerDown={(e) => e.stopPropagation()}>
+          <Link to={`/student/${id}/plan/${plan.id}`} className="text-gray-400 hover:text-green-600 transition-colors bg-gray-50 hover:bg-green-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Eye className="w-4 h-4" /></Link>
+          <Link to={`/student/${id}/plan/${plan.id}/edit`} className="text-gray-400 hover:text-blue-600 transition-colors bg-gray-50 hover:bg-blue-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Edit className="w-4 h-4" /></Link>
+          <button onClick={(e) => handleDeletePlanClick(e, plan.id)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors bg-gray-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
+        </div>
+      </div>
+      <div className="flex items-center text-sm text-gray-500 mb-4">
+        <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+        <span>{format(new Date(plan.expectedDate), 'dd/MM/yyyy')}</span>
+      </div>
+      <p className="text-gray-600 text-sm line-clamp-2">{plan.objective}</p>
     </div>
   );
 }

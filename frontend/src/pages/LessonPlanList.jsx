@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { BookOpen, Plus, Search, Trash2, Edit, Calendar, User, ChevronLeft, ChevronRight, SlidersHorizontal, X, Eye } from 'lucide-react';
-import { getLessonPlans, deleteLessonPlan } from '../api';
+import { BookOpen, Plus, Search, Trash2, Edit, Calendar, User, ChevronLeft, ChevronRight, SlidersHorizontal, X, Eye, GripVertical } from 'lucide-react';
+import { getLessonPlans, deleteLessonPlan, reorderLessonPlans } from '../api';
 import { useLanguage } from '../context/LanguageContext';
 import { format } from 'date-fns';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export default function LessonPlanList() {
   const { language } = useLanguage();
@@ -16,8 +19,8 @@ export default function LessonPlanList() {
   const [subject, setSubject] = useState('');
   const [tags, setTags] = useState('');
   const [expectedDate, setExpectedDate] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortBy, setSortBy] = useState('order');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [showFilters, setShowFilters] = useState(false);
   
   // Pagination state
@@ -49,7 +52,8 @@ export default function LessonPlanList() {
     orderTitleAsc: language === 'pt' ? 'Título (A-Z)' : 'Title (A-Z)',
     orderTitleDesc: language === 'pt' ? 'Título (Z-A)' : 'Title (Z-A)',
     orderDateNew: language === 'pt' ? 'Mais Recentes' : 'Newest First',
-    orderDateOld: language === 'pt' ? 'Mais Antigos' : 'Oldest First'
+    orderDateOld: language === 'pt' ? 'Mais Antigos' : 'Oldest First',
+    orderCustom: language === 'pt' ? 'Ordem Customizada' : 'Custom Order'
   };
 
   const fetchPlans = useCallback(async () => {
@@ -115,8 +119,36 @@ export default function LessonPlanList() {
     setTags('');
     setExpectedDate('');
     setSearchTitle('');
-    setSortBy('createdAt');
-    setSortOrder('desc');
+    setSortBy('order');
+    setSortOrder('asc');
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setPlans((items) => {
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
+        const newArray = arrayMove(items, oldIndex, newIndex);
+        
+        // Optimistic update array and order values
+        const updatedArray = newArray.map((item, idx) => ({ ...item, order: items[idx].order ?? idx }));
+        
+        // Sync with backend
+        const payload = updatedArray.map((item, idx) => ({ id: item.id, order: items[idx].order ?? idx }));
+        reorderLessonPlans(payload).catch(console.error);
+
+        return updatedArray;
+      });
+    }
   };
 
   const inputStyles = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all";
@@ -203,13 +235,14 @@ export default function LessonPlanList() {
                   setSortOrder(order);
                 }}
               >
+                <option value="order-asc">{t.orderCustom}</option>
                 <option value="createdAt-desc">{t.orderDateNew}</option>
                 <option value="createdAt-asc">{t.orderDateOld}</option>
                 <option value="title-asc">{t.orderTitleAsc}</option>
                 <option value="title-desc">{t.orderTitleDesc}</option>
               </select>
             </div>
-            {(subject || tags || expectedDate || searchTitle || sortBy !== 'createdAt') && (
+            {(subject || tags || expectedDate || searchTitle || sortBy !== 'order') && (
               <div className="md:col-span-4 flex justify-end mt-2">
                 <button onClick={clearFilters} className="text-sm font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-widest flex items-center">
                   <X className="w-4 h-4 mr-1" /> {t.clear}
@@ -235,66 +268,22 @@ export default function LessonPlanList() {
               <h3 className="text-xl font-bold text-gray-800 mb-2 tracking-tight">{t.noPlans}</h3>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {plans.map((plan, index) => (
-                <div 
-                  key={plan.id} 
-                  className="group bg-white rounded-2xl p-6 border border-gray-100 shadow-lg shadow-gray-200/50 hover:border-green-500/50 hover:shadow-xl hover:shadow-green-500/10 hover:-translate-y-1 transition-all duration-500 flex flex-col justify-between"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <Link to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}` : `/plan/${plan.id}`} className="group-hover:text-green-600 transition-colors">
-                        <h3 className="font-bold text-xl text-gray-900 line-clamp-2">
-                          {plan.title}
-                        </h3>
-                      </Link>
-                      <div className="flex gap-1 ml-2">
-                        <Link 
-                          to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}` : `/plan/${plan.id}`} 
-                          className="text-gray-400 hover:text-green-600 transition-colors bg-gray-50 hover:bg-green-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link 
-                          to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}/edit` : `/plan/${plan.id}/edit`} 
-                          className="text-gray-400 hover:text-blue-600 transition-colors bg-gray-50 hover:bg-blue-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <button 
-                          onClick={(e) => handleDeleteClick(e, plan.id)} 
-                          className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors bg-gray-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Calendar className="w-4 h-4 mr-2 text-green-500" />
-                        <span>{format(new Date(plan.expectedDate), 'dd/MM/yyyy')}</span>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <User className="w-4 h-4 mr-2 text-green-500" />
-                        <span className="font-medium text-gray-700">{plan.student ? plan.student.name : t.noStudent}</span>
-                      </div>
-                    </div>
-                    
-                    <p className="text-gray-600 text-sm line-clamp-3">
-                      {plan.objective}
-                    </p>
-                  </div>
-                  
-                  <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
-                    <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded font-medium">
-                      {plan.subject}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <SortableContext items={plans.map(p => p.id)} strategy={rectSortingStrategy}>
+                  {plans.map((plan, index) => (
+                    <SortablePlanCard 
+                      key={plan.id} 
+                      plan={plan} 
+                      index={index} 
+                      t={t} 
+                      handleDeleteClick={handleDeleteClick} 
+                      isSortable={sortBy === 'order'}
+                    />
+                  ))}
+                </SortableContext>
+              </div>
+            </DndContext>
           )}
         </div>
 
@@ -348,6 +337,95 @@ export default function LessonPlanList() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SortablePlanCard({ plan, index, handleDeleteClick, t, isSortable }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: plan.id, disabled: !isSortable });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    position: 'relative'
+  };
+
+  // Import lucide icons directly here or pass them if preferred
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      {...(isSortable ? attributes : {})} 
+      {...(isSortable ? listeners : {})}
+      className={`group bg-white rounded-2xl p-6 border flex flex-col justify-between ${
+        isDragging 
+          ? 'border-green-500 shadow-2xl opacity-80 cursor-grabbing' 
+          : `border-gray-100 shadow-lg shadow-gray-200/50 hover:border-green-500/50 hover:shadow-xl hover:shadow-green-500/10 hover:-translate-y-1 ${isSortable ? 'cursor-grab' : ''} transition-all duration-300`
+      }`}
+    >
+      <div>
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex gap-2 items-start" onPointerDown={(e) => e.stopPropagation()}>
+            <Link to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}` : `/plan/${plan.id}`} state={{ from: '/' }} className="group-hover:text-green-600 transition-colors">
+              <h3 className="font-bold text-xl text-gray-900 line-clamp-2">
+                {plan.title}
+              </h3>
+            </Link>
+          </div>
+          <div className="flex gap-1 ml-2" onPointerDown={(e) => e.stopPropagation()}>
+            <Link 
+              to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}` : `/plan/${plan.id}`} 
+              state={{ from: '/' }}
+              className="text-gray-400 hover:text-green-600 transition-colors bg-gray-50 hover:bg-green-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
+            >
+              <Eye className="w-4 h-4" />
+            </Link>
+            <Link 
+              to={plan.studentId ? `/student/${plan.studentId}/plan/${plan.id}/edit` : `/plan/${plan.id}/edit`} 
+              state={{ from: '/' }}
+              className="text-gray-400 hover:text-blue-600 transition-colors bg-gray-50 hover:bg-blue-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
+            >
+              <Edit className="w-4 h-4" />
+            </Link>
+            <button 
+              onClick={(e) => handleDeleteClick(e, plan.id)} 
+              className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors bg-gray-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center text-sm text-gray-500">
+            <Calendar className="w-4 h-4 mr-2 text-green-500" />
+            <span>{format(new Date(plan.expectedDate), 'dd/MM/yyyy')}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-500">
+            <User className="w-4 h-4 mr-2 text-green-500" />
+            <span className="font-medium text-gray-700">{plan.student ? plan.student.name : t.noStudent}</span>
+          </div>
+        </div>
+        
+        <p className="text-gray-600 text-sm line-clamp-3">
+          {plan.objective}
+        </p>
+      </div>
+      
+      <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
+        <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded font-medium">
+          {plan.subject}
+        </span>
+      </div>
     </div>
   );
 }

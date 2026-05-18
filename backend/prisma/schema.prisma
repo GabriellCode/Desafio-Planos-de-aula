@@ -29,6 +29,7 @@ model LessonPlan {
   contents     String
   resources    String
   tags         String   // Storing as JSON string
+  order        Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

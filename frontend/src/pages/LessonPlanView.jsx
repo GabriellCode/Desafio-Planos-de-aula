@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, Edit, Calendar, User, BookOpen, Tag } from 'lucide-react';
 import { getLessonPlan } from '../api';
 import { useLanguage } from '../context/LanguageContext';
@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 export default function LessonPlanView() {
   const { id, studentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = useLanguage();
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,14 +40,14 @@ export default function LessonPlanView() {
     return (
       <div className="w-full flex flex-col items-center mt-20">
         <p className="text-xl text-gray-500">{t.notFound}</p>
-        <button onClick={() => navigate(studentId ? `/student/${studentId}` : '/')} className="mt-4 text-green-600 font-bold underline">
+        <button onClick={() => navigate(location.state?.from || (studentId ? `/student/${studentId}` : '/'))} className="mt-4 text-green-600 font-bold underline">
           {t.back}
         </button>
       </div>
     );
   }
 
-  const backUrl = studentId ? `/student/${studentId}` : '/';
+  const backUrl = location.state?.from || (studentId ? `/student/${studentId}` : '/');
   const editUrl = studentId ? `/student/${studentId}/plan/${id}/edit` : `/plan/${id}/edit`;
 
   return (
