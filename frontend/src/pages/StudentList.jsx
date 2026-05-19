@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, UserPlus, Search, Trash2 } from 'lucide-react';
-import { getStudents, deleteStudent, createStudent } from '../api';
+import { getStudents, deleteStudent, createStudent, reorderStudents } from '../api';
 import { useLanguage } from '../context/LanguageContext';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export default function StudentList() {
   const { language } = useLanguage();
@@ -11,12 +14,12 @@ export default function StudentList() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   
-  // Create Student Modal State
+  // Controle de estado para a janelinha de criação de um novo aluno
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
 
-  // Delete Modal State
+  // Controle de estado para a janelinha de confirmação de exclusão
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState(null);
 
@@ -88,10 +91,38 @@ export default function StudentList() {
 
   const filteredStudents = students.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setStudents((items) => {
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
+        const newArray = arrayMove(items, oldIndex, newIndex);
+        
+        const updatedArray = newArray.map((item, idx) => ({ ...item, order: items[idx].order ?? idx }));
+        
+        const payload = updatedArray.map((item, idx) => ({ id: item.id, order: items[idx].order ?? idx }));
+        reorderStudents(payload).catch(console.error);
+
+        return updatedArray;
+      });
+    }
+  };
+
+  const isSortable = search.trim() === '';
+
   return (
     <div className="w-full flex flex-col items-center pb-20 relative z-10 animate-fade-in">
 
-      {/* Hero Section */}
+      {/* Cabeçalho principal da página com o título */}
       <div className="text-center mt-20 mb-16 max-w-4xl px-4 animate-slide-up">
         <h1 className="text-5xl md:text-7xl font-black text-gray-900 uppercase tracking-tight leading-[1.1]">
           {t.title} <br />
@@ -106,7 +137,7 @@ export default function StudentList() {
 
       <div className="w-full max-w-5xl px-4 sm:px-6 lg:px-8 space-y-8 animate-slide-up-delayed">
         
-        {/* Controls */}
+        {/* Barra de pesquisa e botão de adicionar aluno */}
         <div className="flex flex-col sm:flex-row gap-4 bg-white/80 backdrop-blur-lg p-5 rounded-2xl border border-gray-100 shadow-xl shadow-gray-200/40">
           <div className="relative group flex-grow">
             <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
@@ -127,7 +158,7 @@ export default function StudentList() {
           </button>
         </div>
 
-        {/* List / Cards */}
+        {/* Grade onde os cards dos alunos são exibidos */}
         <div className="animate-slide-up-delayed-2">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -143,43 +174,41 @@ export default function StudentList() {
               <h3 className="text-xl font-bold text-gray-800 mb-2 tracking-tight">{t.noStudents}</h3>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredStudents.map((student, index) => (
-                <div 
-                  key={student.id} 
-                  onClick={() => navigate(`/student/${student.id}`)}
-                  className="group cursor-pointer bg-white rounded-2xl p-6 border border-gray-100 shadow-lg shadow-gray-200/50 hover:border-green-500/50 hover:shadow-xl hover:shadow-green-500/10 hover:-translate-y-1 transition-all duration-500 flex flex-col justify-between"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-2xl text-gray-900 group-hover:text-green-600 transition-colors">
-                        {student.name}
-                      </h3>
-                      {student.email && (
-                        <p className="text-sm text-gray-500 mt-1">{student.email}</p>
-                      )}
-                    </div>
-                    <button 
-                      onClick={(e) => handleDeleteClick(e, student.id)} 
-                      className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors p-2 bg-gray-50 rounded-xl opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
-                    <span className="text-xs font-bold text-green-600/70 uppercase tracking-wider group-hover:text-green-600">
-                      Abrir Painel →
-                    </span>
-                  </div>
+            isSortable ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <SortableContext items={filteredStudents.map(s => s.id)} strategy={rectSortingStrategy}>
+                    {filteredStudents.map((student, index) => (
+                      <SortableStudentCard 
+                        key={student.id} 
+                        student={student} 
+                        index={index} 
+                        handleDeleteClick={handleDeleteClick} 
+                        navigate={navigate}
+                      />
+                    ))}
+                  </SortableContext>
                 </div>
-              ))}
-            </div>
+              </DndContext>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredStudents.map((student, index) => (
+                  <SortableStudentCard 
+                    key={student.id} 
+                    student={student} 
+                    index={index} 
+                    handleDeleteClick={handleDeleteClick} 
+                    navigate={navigate}
+                    disabled={true}
+                  />
+                ))}
+              </div>
+            )
           )}
         </div>
       </div>
 
-      {/* Create Modal */}
+      {/* Modal flutuante para cadastrar um novo aluno */}
       {isCreating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl w-full max-w-md p-8 animate-slide-up">
@@ -217,7 +246,7 @@ export default function StudentList() {
         </div>
       )}
 
-      {/* Delete Modal */}
+      {/* Modal flutuante para confirmar a exclusão de um aluno */}
       {deleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
@@ -242,6 +271,70 @@ export default function StudentList() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SortableStudentCard({ student, index, handleDeleteClick, navigate, disabled }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: student.id, disabled });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    position: 'relative'
+  };
+
+  const handleCardClick = (e) => {
+    // Só entra no painel do aluno se foi um clique normal (não se estivesse apenas arrastando o card)
+    if (!isDragging) {
+      navigate(`/student/${student.id}`);
+    }
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      {...(!disabled ? attributes : {})} 
+      {...(!disabled ? listeners : {})}
+      onClick={handleCardClick}
+      className={`group bg-white rounded-2xl p-6 border flex flex-col justify-between ${
+        isDragging 
+          ? 'border-green-500 shadow-2xl opacity-80 cursor-grabbing' 
+          : `border-gray-100 shadow-lg shadow-gray-200/50 hover:border-green-500/50 hover:shadow-xl hover:shadow-green-500/10 hover:-translate-y-1 ${!disabled ? 'cursor-grab' : 'cursor-pointer'} transition-all duration-300`
+      }`}
+      style={{ ...style, animationDelay: `${index * 50}ms` }}
+    >
+      <div className="flex items-start justify-between">
+        <div onPointerDown={(e) => e.stopPropagation()}>
+          <h3 className="font-bold text-2xl text-gray-900 group-hover:text-green-600 transition-colors">
+            {student.name}
+          </h3>
+          {student.email && (
+            <p className="text-sm text-gray-500 mt-1">{student.email}</p>
+          )}
+        </div>
+        <button 
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => handleDeleteClick(e, student.id)} 
+          className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors p-2 bg-gray-50 rounded-xl opacity-0 group-hover:opacity-100 z-10"
+        >
+          <Trash2 className="w-5 h-5" />
+        </button>
+      </div>
+      <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
+        <span className="text-xs font-bold text-green-600/70 uppercase tracking-wider group-hover:text-green-600">
+          Abrir Painel →
+        </span>
+      </div>
     </div>
   );
 }

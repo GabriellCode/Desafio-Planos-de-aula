@@ -10,7 +10,7 @@ export async function studentRoutes(server) {
   server.get('/', async (request, reply) => {
     try {
       const students = await prisma.student.findMany({
-        orderBy: { createdAt: 'desc' },
+        orderBy: { order: 'asc' },
       });
       return reply.send({ data: students });
     } catch (error) {
@@ -37,8 +37,14 @@ export async function studentRoutes(server) {
   server.post('/', async (request, reply) => {
     try {
       const data = studentSchema.parse(request.body);
+      
+      const maxOrderStudent = await prisma.student.findFirst({
+        orderBy: { order: 'desc' },
+      });
+      const order = maxOrderStudent ? maxOrderStudent.order + 1 : 0;
+      
       const student = await prisma.student.create({ 
-        data 
+        data: { ...data, order }
       });
       return reply.status(201).send(student);
     } catch (error) {
@@ -76,6 +82,28 @@ export async function studentRoutes(server) {
     } catch (error) {
       server.log.error(error);
       return reply.status(500).send({ error: 'Internal Server Error' });
+    }
+  });
+
+  server.post('/reorder', async (request, reply) => {
+    const items = request.body;
+    if (!Array.isArray(items)) {
+      return reply.status(400).send({ error: 'Expected an array of objects' });
+    }
+
+    try {
+      const transactions = items.map((item) => 
+        prisma.student.update({
+          where: { id: item.id },
+          data: { order: item.order }
+        })
+      );
+      
+      await prisma.$transaction(transactions);
+      return reply.send({ success: true });
+    } catch (error) {
+      server.log.error(error);
+      return reply.status(500).send({ error: 'Erro ao reordenar alunos' });
     }
   });
 }

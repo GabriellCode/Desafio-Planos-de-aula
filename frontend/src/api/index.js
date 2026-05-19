@@ -30,6 +30,11 @@ export const deleteStudent = async (id) => {
   return data;
 };
 
+export const reorderStudents = async (data) => {
+  const res = await api.post('/students/reorder', data);
+  return res.data;
+};
+
 // Lesson Plans
 export const getLessonPlans = async (filters = {}) => {
   const params = new URLSearchParams();

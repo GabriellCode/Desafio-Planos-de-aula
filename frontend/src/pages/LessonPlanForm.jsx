@@ -73,7 +73,7 @@ export default function LessonPlanForm() {
     resources: language === 'pt' ? 'Recursos de Apoio (Gerado pela IA)' : 'Support Resources (AI Generated)',
     save: language === 'pt' ? 'Salvar Plano' : 'Publish Plan',
     saving: language === 'pt' ? 'Salvando...' : 'Saving...',
-    aiErrorInput: language === 'pt' ? 'Preencha Título e Disciplina antes de gerar recomendações.' : 'Please fill Title and Subject before generating recommendations.',
+    aiErrorInput: language === 'pt' ? 'Preencha Título, Disciplina, Objetivo e Resumo antes de gerar recomendações.' : 'Please fill Title, Subject, Objective and Summary before generating recommendations.',
     aiErrorFail: language === 'pt' ? 'Falha ao consultar a IA. Tente novamente mais tarde.' : 'Failed to consult AI. Try again later.',
     saveError: language === 'pt' ? 'Erro ao salvar o plano de aula.' : 'Error saving lesson plan.',
     tagsPlaceholder: language === 'pt' ? 'Ex: matemática (Ou deixe a IA preencher)' : 'Ex: math (Or let AI fill)',
@@ -124,9 +124,10 @@ export default function LessonPlanForm() {
   const handleAI = async () => {
     const title = getValues('title');
     const subject = getValues('subject');
+    const objective = getValues('objective');
     const summary = getValues('summary');
 
-    if (!title || !subject) {
+    if (!title || !subject || !objective || !summary) {
       setAiError(t.aiErrorInput);
       return;
     }
@@ -153,7 +154,7 @@ export default function LessonPlanForm() {
       }
     } catch (err) {
       console.error(err);
-      setAiError(t.aiErrorFail);
+      setAiError(err.response?.data?.error || t.aiErrorFail);
     } finally {
       setAiLoading(false);
     }
@@ -242,6 +243,34 @@ export default function LessonPlanForm() {
                 />
                 {errors.subject && <p className="text-xs text-red-500 font-bold mt-2">{errors.subject.message}</p>}
               </div>
+              
+              <div className="md:col-span-2">
+                <label className={labelStyles}>{t.objective}</label>
+                <textarea {...register('objective')} rows={3} className={`${inputStyles} h-auto py-3 resize-none`} placeholder={t.objectivePlaceholder} />
+                {errors.objective && <p className="text-xs text-red-500 font-bold mt-2">{errors.objective.message}</p>}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className={labelStyles}>{t.summary}</label>
+                <textarea {...register('summary')} rows={4} className={`${inputStyles} h-auto py-3 resize-none`} placeholder={t.summaryPlaceholder} />
+                {errors.summary && <p className="text-xs text-red-500 font-bold mt-2">{errors.summary.message}</p>}
+              </div>
+
+              <div className="md:col-span-2 flex justify-end -mt-4">
+                <button
+                  type="button"
+                  onClick={handleAI}
+                  disabled={aiLoading}
+                  className="inline-flex items-center justify-center rounded-xl text-sm font-bold transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-md hover:shadow-green-500/30 h-10 px-5 shadow-sm whitespace-nowrap"
+                >
+                  {aiLoading ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.aiThinking}</>
+                  ) : (
+                    <><Wand2 className="w-4 h-4 mr-2" /> {t.smartAssist}</>
+                  )}
+                </button>
+              </div>
+
               <div>
                 <label className={labelStyles}>{t.expectedDate}</label>
                 <input type="date" {...register('expectedDate')} className={inputStyles} />
@@ -264,33 +293,6 @@ export default function LessonPlanForm() {
                 </select>
                 {errors.studentId && <p className="text-xs text-red-500 font-bold mt-2">{errors.studentId.message}</p>}
               </div>
-            </div>
-
-            <div>
-              <label className={labelStyles}>{t.objective}</label>
-              <textarea {...register('objective')} rows={3} className={`${inputStyles} h-auto py-3 resize-none`} placeholder={t.objectivePlaceholder} />
-              {errors.objective && <p className="text-xs text-red-500 font-bold mt-2">{errors.objective.message}</p>}
-            </div>
-
-            <div>
-              <label className={labelStyles}>{t.summary}</label>
-              <textarea {...register('summary')} rows={4} className={`${inputStyles} h-auto py-3 resize-none`} placeholder={t.summaryPlaceholder} />
-              {errors.summary && <p className="text-xs text-red-500 font-bold mt-2">{errors.summary.message}</p>}
-            </div>
-
-            <div className="flex justify-end -mt-4 mb-4">
-              <button
-                type="button"
-                onClick={handleAI}
-                disabled={aiLoading}
-                className="inline-flex items-center justify-center rounded-xl text-sm font-bold transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-md hover:shadow-green-500/30 h-10 px-5 shadow-sm whitespace-nowrap"
-              >
-                {aiLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.aiThinking}</>
-                ) : (
-                  <><Wand2 className="w-4 h-4 mr-2" /> {t.smartAssist}</>
-                )}
-              </button>
             </div>
 
             <div>

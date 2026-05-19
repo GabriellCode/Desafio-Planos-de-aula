@@ -71,15 +71,15 @@ export default function StudentDashboard() {
     }
   };
 
-  if (loading || !student) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-900 bg-slate-50"><div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div></div>;
-  }
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
     })
   );
+
+  if (loading || !student) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-900 bg-slate-50"><div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div></div>;
+  }
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
@@ -103,7 +103,7 @@ export default function StudentDashboard() {
     <div className="w-full flex flex-col items-center pb-20 relative z-10 animate-fade-in mt-10">
 
       <div className="w-full max-w-5xl px-4 sm:px-6 lg:px-8">
-        <button onClick={() => navigate('/')} className="flex items-center text-sm font-bold text-gray-500 hover:text-green-600 mb-8 transition-colors uppercase tracking-widest">
+        <button onClick={() => navigate('/students')} className="flex items-center text-sm font-bold text-gray-500 hover:text-green-600 mb-8 transition-colors uppercase tracking-widest">
           <ArrowLeft className="w-4 h-4 mr-2" />
           {t.back}
         </button>

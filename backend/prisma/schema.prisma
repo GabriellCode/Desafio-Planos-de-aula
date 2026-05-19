@@ -16,6 +16,7 @@ model Student {
   
   lessonPlans LessonPlan[]
   reports     Report[]
+  order       Int      @default(0)
 }
 
 model LessonPlan {

@@ -22,7 +22,7 @@ Sua missão principal é ajudar o professor a elaborar uma aula mais rica e enga
 Com base no título da aula, na disciplina e no ementa/resumo fornecidos, sua tarefa é:
 1. Sugerir conteúdos úteis e inovadores para a aula.
 2. Listar tópicos relacionados e complementares que podem enriquecer o aprendizado.
-3. Sugerir 3 a 5 tags curtas para categorizar essa aula no sistema.
+3. Sugerir EXATAMENTE 3 tags recomendadas para categorizar essa aula no sistema.
 4. Recomendar recursos de apoio de forma EXTREMAMENTE concisa e direta (apenas 2 livros e 2 links, sem textos explicativos longos e SEM usar formatação markdown como negrito/asteriscos).
 5. Se a "Ementa" estiver vazia ou pedir para gerar, crie um resumo/ementa excelente para a aula.
 ${langInstruction}
@@ -68,6 +68,9 @@ Responda OBRIGATORIAMENTE em formato JSON estrito, e APENAS em JSON (sem markdow
       return reply.send(parsedResult);
     } catch (error) {
       server.log.error(error);
+      if (error.status === 503 || error.message?.includes('UNAVAILABLE')) {
+        return reply.status(503).send({ error: 'O servidor da IA (Google Gemini) está com alta demanda ou indisponível no momento. Por favor, aguarde alguns segundos e tente novamente.' });
+      }
       return reply.status(500).send({ error: 'Erro ao consultar a IA.' });
     }
   });

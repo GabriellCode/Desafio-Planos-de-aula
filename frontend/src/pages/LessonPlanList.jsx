@@ -14,7 +14,7 @@ export default function LessonPlanList() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Filter States
+  // Estados para controlar os filtros de pesquisa
   const [searchTitle, setSearchTitle] = useState('');
   const [subject, setSubject] = useState('');
   const [tags, setTags] = useState('');
@@ -23,12 +23,12 @@ export default function LessonPlanList() {
   const [sortOrder, setSortOrder] = useState('asc');
   const [showFilters, setShowFilters] = useState(false);
   
-  // Pagination state
+  // Estado para controlar a paginação (qual página estamos vendo agora)
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 6;
 
-  // Modal State
+  // Estado da janelinha de confirmação de exclusão
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);
 
@@ -80,7 +80,7 @@ export default function LessonPlanList() {
     }
   }, [page, searchTitle, subject, tags, expectedDate, sortBy, sortOrder]);
 
-  // Debounce search and filter typing
+  // Espera o usuário parar de digitar (meio segundo) antes de buscar na API, para não sobrecarregar o servidor
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchPlans();
@@ -88,7 +88,7 @@ export default function LessonPlanList() {
     return () => clearTimeout(timer);
   }, [fetchPlans]);
 
-  // Reset to page 1 when filters change
+  // Volta para a primeira página sempre que qualquer filtro for alterado
   useEffect(() => {
     setPage(1);
   }, [searchTitle, subject, tags, expectedDate, sortBy, sortOrder]);
@@ -139,10 +139,10 @@ export default function LessonPlanList() {
         const newIndex = items.findIndex(i => i.id === over.id);
         const newArray = arrayMove(items, oldIndex, newIndex);
         
-        // Optimistic update array and order values
+        // Atualiza a interface instantaneamente para o usuário sentir que foi rápido (otimista)
         const updatedArray = newArray.map((item, idx) => ({ ...item, order: items[idx].order ?? idx }));
         
-        // Sync with backend
+        // Dispara a chamada para o banco de dados salvar a nova ordem silenciosamente
         const payload = updatedArray.map((item, idx) => ({ id: item.id, order: items[idx].order ?? idx }));
         reorderLessonPlans(payload).catch(console.error);
 
@@ -156,7 +156,7 @@ export default function LessonPlanList() {
   return (
     <div className="w-full flex flex-col items-center pb-20 relative z-10 animate-fade-in mt-10">
       
-      {/* Hero Section */}
+      {/* Cabeçalho principal da tela */}
       <div className="text-center mt-10 mb-12 max-w-4xl px-4 animate-slide-up">
         <h1 className="text-5xl md:text-7xl font-black text-gray-900 uppercase tracking-tight leading-[1.1]">
           {t.title} <br />
@@ -171,7 +171,7 @@ export default function LessonPlanList() {
 
       <div className="w-full max-w-5xl px-4 sm:px-6 lg:px-8 space-y-6 animate-slide-up-delayed">
         
-        {/* Main Controls Bar */}
+        {/* Barra principal com pesquisa, botão de filtros e criar novo */}
         <div className="flex flex-col sm:flex-row gap-4 bg-white/80 backdrop-blur-lg p-5 rounded-2xl border border-gray-100 shadow-xl shadow-gray-200/40">
           <div className="relative group flex-grow">
             <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
@@ -195,9 +195,6 @@ export default function LessonPlanList() {
           >
             <SlidersHorizontal className="w-5 h-5 mr-2" />
             {t.filters}
-            {(subject || tags || expectedDate || sortBy !== 'createdAt') && (
-              <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
-            )}
           </button>
 
           <Link
@@ -209,7 +206,7 @@ export default function LessonPlanList() {
           </Link>
         </div>
 
-        {/* Advanced Filters Panel */}
+        {/* Painel expansível de filtros avançados */}
         {showFilters && (
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg shadow-gray-200/30 animate-slide-up grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
@@ -252,7 +249,7 @@ export default function LessonPlanList() {
           </div>
         )}
 
-        {/* List / Cards */}
+        {/* Área onde os cards dos planos de aula aparecem */}
         <div className="animate-slide-up-delayed-2">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -287,7 +284,7 @@ export default function LessonPlanList() {
           )}
         </div>
 
-        {/* Pagination Controls */}
+        {/* Botões para avançar ou voltar de página */}
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-center space-x-4 mt-8 animate-fade-in">
             <button
@@ -357,8 +354,6 @@ function SortablePlanCard({ plan, index, handleDeleteClick, t, isSortable }) {
     zIndex: isDragging ? 50 : 1,
     position: 'relative'
   };
-
-  // Import lucide icons directly here or pass them if preferred
 
   return (
     <div 
